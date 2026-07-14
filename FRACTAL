@@ -154,39 +154,21 @@ Settings settings           = Settings.new()
 var CandleSettings SettingsHTF1 = CandleSettings.new()
 var CandleSettings SettingsHTF2 = CandleSettings.new()
 var CandleSettings SettingsHTF3 = CandleSettings.new()
-var CandleSettings SettingsHTF4 = CandleSettings.new()
-var CandleSettings SettingsHTF5 = CandleSettings.new()
-var CandleSettings SettingsHTF6 = CandleSettings.new()
 var Candle[] candles_1        = array.new<Candle>(0)
 var Candle[] candles_2        = array.new<Candle>(0)
 var Candle[] candles_3        = array.new<Candle>(0)
-var Candle[] candles_4        = array.new<Candle>(0)
-var Candle[] candles_5        = array.new<Candle>(0)
-var Candle[] candles_6        = array.new<Candle>(0)
 var Imbalance[] imbalances_1    = array.new<Imbalance>()
 var Imbalance[] imbalances_2    = array.new<Imbalance>()
 var Imbalance[] imbalances_3    = array.new<Imbalance>()
-var Imbalance[] imbalances_4    = array.new<Imbalance>()
-var Imbalance[] imbalances_5    = array.new<Imbalance>()
-var Imbalance[] imbalances_6    = array.new<Imbalance>()
 var line[] htf_starts_1          = array.new_line(0)
 var line[] htf_starts_2          = array.new_line(0)
 var line[] htf_starts_3          = array.new_line(0)
-var line[] htf_starts_4          = array.new_line(0)
-var line[] htf_starts_5          = array.new_line(0)
-var line[] htf_starts_6          = array.new_line(0)
 var line[] mini_sweeps_1         = array.new_line(0)
 var line[] mini_sweeps_2         = array.new_line(0)
 var line[] mini_sweeps_3         = array.new_line(0)
-var line[] mini_sweeps_4         = array.new_line(0)
-var line[] mini_sweeps_5         = array.new_line(0)
-var line[] mini_sweeps_6         = array.new_line(0)
 var line[] mini_midpoints_1      = array.new_line(0)
 var line[] mini_midpoints_2      = array.new_line(0)
 var line[] mini_midpoints_3      = array.new_line(0)
-var line[] mini_midpoints_4      = array.new_line(0)
-var line[] mini_midpoints_5      = array.new_line(0)
-var line[] mini_midpoints_6      = array.new_line(0)
 var CandleSet htf1          = CandleSet.new()
 htf1.settings               := SettingsHTF1
 htf1.candles                := candles_1
@@ -208,27 +190,6 @@ htf3.imbalances             := imbalances_3
 htf3.htf_starts            := htf_starts_3
 htf3.mini_sweeps           := mini_sweeps_3
 htf3.mini_midpoints        := mini_midpoints_3
-var CandleSet htf4          = CandleSet.new()
-htf4.settings               := SettingsHTF4
-htf4.candles                := candles_4
-htf4.imbalances             := imbalances_4
-htf4.htf_starts            := htf_starts_4
-htf4.mini_sweeps           := mini_sweeps_4
-htf4.mini_midpoints        := mini_midpoints_4
-var CandleSet htf5          = CandleSet.new()
-htf5.settings               := SettingsHTF5
-htf5.candles                := candles_5
-htf5.imbalances             := imbalances_5
-htf5.htf_starts            := htf_starts_5
-htf5.mini_sweeps           := mini_sweeps_5
-htf5.mini_midpoints        := mini_midpoints_5
-var CandleSet htf6          = CandleSet.new()
-htf6.settings               := SettingsHTF6
-htf6.candles                := candles_6
-htf6.imbalances             := imbalances_6
-htf6.htf_starts            := htf_starts_6
-htf6.mini_sweeps           := mini_sweeps_6
-htf6.mini_midpoints        := mini_midpoints_6
 string GRP_GENERAL = "1 - GENERAL"
 string GRP_HTF = "2 - HTF TIMEFRAMES"
 string GRP_CANDLES = "3 - CANDLE APPEARANCE"
@@ -302,9 +263,6 @@ htf3_manual = input.timeframe("1W", "HTF 3 Timeframe (if not auto)", options=["1
 htf3.settings.max_display := input.int(4, "Max Candles (HTF 3)", minval=1, maxval=6, group=GRP_HTF, active=htf3_show)
 htf3.settings.width := input.int(1, "Candle Width (HTF 3)", minval=1, maxval=4, group=GRP_HTF, active=htf3_show) * 2
 htf3.settings.htf := auto_align_htf3 ? nextHTF(htf2.settings.htf) : htf3_manual
-htf4.settings.show := false
-htf5.settings.show := false
-htf6.settings.show := false
 settings.max_sets := (htf1.settings.show ? 1 : 0) + (htf2.settings.show ? 1 : 0) + (htf3.settings.show ? 1 : 0)
 settings.width := htf1.settings.width
 settings.bull_body := input.color(color.new(#47b14d, 10), "Bullish Body", inline="body", group=GRP_CANDLES)
@@ -1199,16 +1157,10 @@ trimHTFDividerLines() =>
         trimLineArray(htf1.htf_starts, max_htf_divider_lines)
         trimLineArray(htf2.htf_starts, 0)
         trimLineArray(htf3.htf_starts, 0)
-        trimLineArray(htf4.htf_starts, 0)
-        trimLineArray(htf5.htf_starts, 0)
-        trimLineArray(htf6.htf_starts, 0)
     else
         trimLineArray(htf1.htf_starts, max_htf_divider_lines)
         trimLineArray(htf2.htf_starts, max_htf_divider_lines)
         trimLineArray(htf3.htf_starts, max_htf_divider_lines)
-        trimLineArray(htf4.htf_starts, max_htf_divider_lines)
-        trimLineArray(htf5.htf_starts, max_htf_divider_lines)
-        trimLineArray(htf6.htf_starts, max_htf_divider_lines)
 cleanChartSetupHistory() =>
     if clean_mini_display_lines
         while fractal_boxes.size() > 1
@@ -1676,64 +1628,6 @@ method Monitor(CandleSet candleSet) =>
         dayofmonth(time) != dayofmonth(time[1])
     else
         ta.change(HTFBarTime) != 0
-    if fractal_boxes.size() > 0
-        latest_fractal = fractal_boxes.get(0)
-        latest_fractal_mid_line = fractal_midlines.get(0)
-        fractal_top = box.get_top(latest_fractal)
-        fractal_bottom = box.get_bottom(latest_fractal)
-        if false and extend_latest_fractal
-            box_left = box.get_left(latest_fractal)
-            if bar_index - box_left < 499
-                box.set_right(latest_fractal, bar_index)
-                line.set_x2(latest_fractal_mid_line, bar_index)
-                if fractal_closelines.size() > 0
-                    latest_fractal_close_line = fractal_closelines.get(0)
-                    line.set_x2(latest_fractal_close_line, bar_index)
-    if extend_latest_projections and projection_lines.size() > 0
-        levels = str.split(projection_levels, ",")
-        projection_count = 0
-        for i = 0 to array.size(levels) - 1
-            level_str = str.trim(array.get(levels, i))
-            if level_str != ""
-                projection_count += 1
-        projection_end = math.min(bar_index + settings.offset + 20, bar_index + 500)
-        for i = 0 to math.min(projection_count - 1, array.size(projection_lines) - 1)
-            proj_line = array.get(projection_lines, i)
-            line.set_x2(proj_line, projection_end)
-            if i < array.size(projection_labels) and fib_label_side == "Right"
-                proj_label = array.get(projection_labels, i)
-                label.set_x(proj_label, projection_end)
-        if array.size(invalidation_lines) > 0
-            inv_line = array.get(invalidation_lines, 0)
-            line.set_x2(inv_line, projection_end)
-        if array.size(invalidation_boxes) > 0
-            inv_box = array.get(invalidation_boxes, 0)
-            box.set_right(inv_box, projection_end)
-        if array.size(invalidation_labels) > 0
-            inv_label = array.get(invalidation_labels, 0)
-            label.set_x(inv_label, projection_end)
-    levels = str.split(projection_levels, ",")
-    projection_count = 0
-    for i = 0 to array.size(levels) - 1
-        level_str = str.trim(array.get(levels, i))
-        if level_str != ""
-            projection_count += 1
-    max_projection_lines = projection_sets_to_keep * projection_count
-    while projection_lines.size() > max_projection_lines and projection_lines.size() > 0
-        old_proj_line = projection_lines.pop()
-        line.delete(old_proj_line)
-        if projection_labels.size() > 0
-            old_proj_label = projection_labels.pop()
-            label.delete(old_proj_label)
-    while invalidation_lines.size() > projection_sets_to_keep and invalidation_lines.size() > 0
-        old_inv_line = invalidation_lines.pop()
-        line.delete(old_inv_line)
-        if invalidation_boxes.size() > 0
-            old_inv_box = invalidation_boxes.pop()
-            box.delete(old_inv_box)
-        if invalidation_labels.size() > 0
-            old_inv_label = invalidation_labels.pop()
-            label.delete(old_inv_label)
     if isNewHTFCandle
         if show_live_developing_signals
             if not na(live.sweep_line)
@@ -2496,31 +2390,45 @@ if htf3.settings.show and validTimeframe(htf3.settings.htf) and cnt < last
     htf3.Monitor().Update(htf_offset, showTrace).FindImbalance()
     cnt+=1
     htf_offset += cnt > 0 ? (htf3.candles.size() * htf3.settings.width) + (htf3.candles.size() > 0 ? (htf3.candles.size()-1) * settings.buffer : 0) +  settings.htf_buffer : 0
-if htf4.settings.show and helper.ValidTimeframe(htf4.settings.htf) and cnt < last
-    bool showTrace = false
-    if settings.trace_anchor == "First Timeframe" and cnt == 0
-        showTrace := true
-    if settings.trace_anchor == "Last Timeframe" and cnt == last-1
-        showTrace := true
-    htf4.Monitor().Update(htf_offset, showTrace).FindImbalance()
-    cnt+=1
-    htf_offset += cnt > 0 ? (htf4.candles.size() * settings.width) + (htf4.candles.size() > 0 ? (htf4.candles.size()-1) * settings.buffer : 0) +  settings.htf_buffer : 0
-if htf5.settings.show and helper.ValidTimeframe(htf5.settings.htf) and cnt < last
-    bool showTrace = false
-    if settings.trace_anchor == "First Timeframe" and cnt == 0
-        showTrace := true
-    if settings.trace_anchor == "Last Timeframe" and cnt == last-1
-        showTrace := true
-    htf5.Monitor().Update(htf_offset, showTrace).FindImbalance()
-    cnt+=1
-    htf_offset += cnt > 0 ? (htf5.candles.size() * settings.width) + (htf5.candles.size() > 0 ? (htf5.candles.size()-1) * settings.buffer : 0) +  settings.htf_buffer : 0
-if htf6.settings.show and helper.ValidTimeframe(htf6.settings.htf) and cnt < last
-    bool showTrace = false
-    if settings.trace_anchor == "First Timeframe" and cnt == 0
-        showTrace := true
-    if settings.trace_anchor == "Last Timeframe"
-        showTrace := true
-    htf6.Monitor().Update(htf_offset, showTrace).FindImbalance()
+levels = str.split(projection_levels, ",")
+projection_count = 0
+for i = 0 to array.size(levels) - 1
+    level_str = str.trim(array.get(levels, i))
+    if level_str != ""
+        projection_count += 1
+if extend_latest_projections and projection_lines.size() > 0
+    projection_end = math.min(bar_index + settings.offset + 20, bar_index + 500)
+    for i = 0 to math.min(projection_count - 1, array.size(projection_lines) - 1)
+        proj_line = array.get(projection_lines, i)
+        line.set_x2(proj_line, projection_end)
+        if i < array.size(projection_labels) and fib_label_side == "Right"
+            proj_label = array.get(projection_labels, i)
+            label.set_x(proj_label, projection_end)
+    if array.size(invalidation_lines) > 0
+        inv_line = array.get(invalidation_lines, 0)
+        line.set_x2(inv_line, projection_end)
+    if array.size(invalidation_boxes) > 0
+        inv_box = array.get(invalidation_boxes, 0)
+        box.set_right(inv_box, projection_end)
+    if array.size(invalidation_labels) > 0
+        inv_label = array.get(invalidation_labels, 0)
+        label.set_x(inv_label, projection_end)
+max_projection_lines = projection_sets_to_keep * projection_count
+while projection_lines.size() > max_projection_lines and projection_lines.size() > 0
+    old_proj_line = projection_lines.pop()
+    line.delete(old_proj_line)
+    if projection_labels.size() > 0
+        old_proj_label = projection_labels.pop()
+        label.delete(old_proj_label)
+while invalidation_lines.size() > projection_sets_to_keep and invalidation_lines.size() > 0
+    old_inv_line = invalidation_lines.pop()
+    line.delete(old_inv_line)
+    if invalidation_boxes.size() > 0
+        old_inv_box = invalidation_boxes.pop()
+        box.delete(old_inv_box)
+    if invalidation_labels.size() > 0
+        old_inv_label = invalidation_labels.pop()
+        label.delete(old_inv_label)
 trimHTFDividerLines()
 cleanChartSetupHistory()
 [breaker_auto_a, breaker_auto_b, breaker_auto_c, breaker_auto_d] = breakerAutoHTFs()
