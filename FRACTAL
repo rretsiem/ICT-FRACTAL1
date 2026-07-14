@@ -40,20 +40,8 @@ type LiveSignalState
     int             signal_start_bar
 type BreakerSetup
     string          dir
-    int             sweepIndex
-    float           sweepExtreme
-    float           sweptLevel
-    int             sweptLevelStartBar
-    int             breakerStartIdx
-    int             breakerEndIdx
-    float           breakerTop
-    float           breakerBottom
-    bool            isConfirmed
-    int             confIndex
-    float           entryPrice
     float           invalidationPrice
     bool            isInvalidated
-    bool            isTargetHit
     line            levelLine
     label           levelLabel
     box             breakerBox
@@ -62,13 +50,9 @@ type BreakerSetup
     label[]         targetLabels
     label           setupLabel
 type BreakerHTFLevel
-    string          tfLabel
-    string          levelType
     bool            isHigh
     float           price
     int             startBar
-    bool            isSwept
-    int             sweepBar
     string          labelText
 type AlertState
     bool            longCisdLive
@@ -332,12 +316,6 @@ ob_label_size = input.string(SIZE_SMALL, "Size", options=[SIZE_TINY, SIZE_SMALL,
 show_fractal_sweeps = true
 enable_breaker_model = input.bool(false, "Enable Breaker Model", group=GRP_BREAKER)
 breaker_history = 1
-breaker_require_fvg = true
-breaker_use_sweep_invalidation = false
-breaker_discard_invalidated = false
-breaker_enable_fvg_atr_filter = false
-breaker_fvg_atr_mult = 0.5
-breaker_show_rr_target = true
 breaker_rr_ratio = 2.0
 breaker_bull_color = color.new(#089981, 85)
 breaker_bear_color = color.new(#f23645, 85)
@@ -518,7 +496,6 @@ var float breaker_pending_bear_extreme = na
 var float breaker_pending_bear_level = na
 var int breaker_pending_bear_level_start_bar = na
 var string breaker_pending_bear_label_text = ""
-var int breaker_last_setup_bar = na
 var float breaker_last_prev_high_a = na
 var float breaker_last_prev_low_a = na
 var float breaker_last_swing_high_a = na
@@ -1299,7 +1276,7 @@ breakerRegisterLevel(string tfLabel, string lvlType, bool isHigh, float priceVal
             if breaker_active_levels.size() > 0
                 for i = 0 to breaker_active_levels.size() - 1
                     BreakerHTFLevel lvl = breaker_active_levels.get(i)
-                    if not lvl.isSwept and lvl.isHigh == isHigh and math.abs(lvl.price - priceVal) < (syminfo.mintick * 0.1)
+                    if lvl.isHigh == isHigh and math.abs(lvl.price - priceVal) < (syminfo.mintick * 0.1)
                         string searchStr = tfLabel + " " + lvlType
                         if not str.contains(lvl.labelText, searchStr)
                             lvl.labelText := lvl.labelText + ", " + searchStr
@@ -1307,10 +1284,8 @@ breakerRegisterLevel(string tfLabel, string lvlType, bool isHigh, float priceVal
                         exists := true
                         break
             if not exists
-                BreakerHTFLevel newLvl = BreakerHTFLevel.new(tfLabel, lvlType, isHigh, priceVal, startB, false, na, tfLabel + " " + lvlType)
+                BreakerHTFLevel newLvl = BreakerHTFLevel.new(isHigh, priceVal, startB, tfLabel + " " + lvlType)
                 breaker_active_levels.push(newLvl)
-breakerSizeFilter(float breakerTop, float breakerBottom) =>
-    true
 breakerFindUpCandlesSeries(int sweepOffset) =>
     int startOffset = na
     int endOffset = na
@@ -1372,9 +1347,6 @@ breakerFindBullishFVG(float breakerTop, float breakerBottom, int breakerStartBar
             if low[i] > high[i + 2]
                 top = low[i]
                 bottom = high[i + 2]
-                atrVal = ta.atr(14)[i]
-                if breaker_enable_fvg_atr_filter and (top - bottom) < (atrVal * breaker_fvg_atr_mult)
-                    continue
                 overlaps = math.max(bottom, breakerBottom) < math.min(top, breakerTop)
                 if overlaps
                     bool unmitigated = true
@@ -1400,9 +1372,6 @@ breakerFindBearishFVG(float breakerTop, float breakerBottom, int breakerStartBar
             if high[i] < low[i + 2]
                 top = low[i + 2]
                 bottom = high[i]
-                atrVal = ta.atr(14)[i]
-                if breaker_enable_fvg_atr_filter and (top - bottom) < (atrVal * breaker_fvg_atr_mult)
-                    continue
                 overlaps = math.max(bottom, breakerBottom) < math.min(top, breakerTop)
                 if overlaps
                     bool unmitigated = true
@@ -1434,27 +1403,18 @@ deleteBreakerSetup(BreakerSetup setup) =>
             label.delete(lb)
     if not na(setup.setupLabel)
         label.delete(setup.setupLabel)
-clearBreakerSetups() =>
-    while breaker_setups.size() > 0
-        BreakerSetup old_setup = breaker_setups.pop()
-        deleteBreakerSetup(old_setup)
-    while breaker_active_levels.size() > 0
-        breaker_active_levels.pop()
-addBreakerSetup(bool bullish, int breakerStartOffset, int breakerEndOffset, int sweepBar, int sweptLevelStartBar, string sweptLabelText, float breakerTop, float breakerBottom, float sweptLevel, float invalidation, bool hasFvg, float fvgTop, float fvgBottom, int fvgLeft, int fvgRight) =>
-    int breakerStartIdx = bar_index - breakerStartOffset
+addBreakerSetup(bool bullish, int breakerEndOffset, int sweepBar, int sweptLevelStartBar, string sweptLabelText, float breakerTop, float breakerBottom, float sweptLevel, float invalidation, float fvgTop, float fvgBottom, int fvgLeft, int fvgRight) =>
     int breakerEndIdx = bar_index - breakerEndOffset
     setupColor = bullish ? breaker_bull_color : breaker_bear_color
     mid = (breakerTop + breakerBottom) / 2.0
     borderColor = bullish ? breaker_bull_border : breaker_bear_border
     box breakerBox = box.new(left=breakerEndIdx, top=breakerTop, right=bar_index, bottom=breakerBottom, border_color=borderColor, bgcolor=setupColor, xloc=xloc.bar_index)
-    box fvgBox = na
-    if hasFvg
-        fvgBox := box.new(left=fvgLeft, top=fvgTop, right=fvgRight, bottom=fvgBottom, border_color=color.new(color.white, 100), bgcolor=bullish ? breaker_bull_fvg_color : breaker_bear_fvg_color, xloc=xloc.bar_index)
+    box fvgBox = box.new(left=fvgLeft, top=fvgTop, right=fvgRight, bottom=fvgBottom, border_color=color.new(color.white, 100), bgcolor=bullish ? breaker_bull_fvg_color : breaker_bear_fvg_color, xloc=xloc.bar_index)
     int lineStartB = math.max(sweptLevelStartBar, bar_index - 4500)
     line levelLine = line.new(lineStartB, sweptLevel, sweepBar, sweptLevel, color=universalColor(color.gray), style=line.style_dotted, width=1)
-    label levelLabel = label.new(lineStartB, sweptLevel + (nz(ta.atr(14)) * 0.1), sweptLabelText, color=color.new(color.white, 100), textcolor=breaker_label_color, style=label.style_label_left, size=size.small, text_font_family=font.family_monospace)
-    labelText = bullish ? (hasFvg ? "+Unicorn" : "+Breaker") : (hasFvg ? "-Unicorn" : "-Breaker")
-    tooltipText = "Setup: " + (bullish ? (hasFvg ? "Bullish Unicorn" : "Bullish Breaker") : (hasFvg ? "Bearish Unicorn" : "Bearish Breaker")) + "\n" +
+    label levelLabel = label.new(lineStartB, sweptLevel + (nz(atr_14) * 0.1), sweptLabelText, color=color.new(color.white, 100), textcolor=breaker_label_color, style=label.style_label_left, size=size.small, text_font_family=font.family_monospace)
+    labelText = bullish ? "+Unicorn" : "-Unicorn"
+    tooltipText = "Setup: " + (bullish ? "Bullish Unicorn" : "Bearish Unicorn") + "\n" +
          "Swept Level: " + str.tostring(sweptLevel, format.mintick) + "\n" +
          "Entry: " + str.tostring(close, format.mintick) + "\n" +
          "Stop Loss: " + str.tostring(invalidation, format.mintick)
@@ -1462,13 +1422,13 @@ addBreakerSetup(bool bullish, int breakerStartOffset, int breakerEndOffset, int 
     riskRange = bullish ? close - invalidation : invalidation - close
     line[] targetLines = array.new_line()
     label[] targetLabels = array.new_label()
-    if breaker_show_rr_target and riskRange > 0
+    if riskRange > 0
         targetPrice = close + (bullish ? 1 : -1) * breaker_rr_ratio * riskRange
         l = line.new(breakerEndIdx, targetPrice, bar_index, targetPrice, color=breaker_label_color, style=line.style_dotted, width=1)
         lbl = label.new(bar_index, targetPrice, str.tostring(breaker_rr_ratio, "#.##") + "R", color=color.new(color.white, 100), textcolor=breaker_label_color, style=label.style_label_left, size=size.small, tooltip="Target level: " + str.tostring(targetPrice, format.mintick), text_font_family=font.family_monospace)
         array.push(targetLines, l)
         array.push(targetLabels, lbl)
-    BreakerSetup setup = BreakerSetup.new(bullish ? "BULL" : "BEAR", sweepBar, bullish ? breaker_pending_bull_extreme : breaker_pending_bear_extreme, sweptLevel, sweptLevelStartBar, breakerStartIdx, breakerEndIdx, breakerTop, breakerBottom, true, bar_index, close, invalidation, false, false, levelLine, levelLabel, breakerBox, fvgBox, targetLines, targetLabels, setupLabel)
+    BreakerSetup setup = BreakerSetup.new(bullish ? "BULL" : "BEAR", invalidation, false, levelLine, levelLabel, breakerBox, fvgBox, targetLines, targetLabels, setupLabel)
     breaker_setups.push(setup)
     if bullish
         alerts.longBreaker := true
@@ -1487,24 +1447,19 @@ updateBreakerSetups() =>
                 bool invalidated = setup.dir == "BULL" ? low < setup.invalidationPrice : high > setup.invalidationPrice
                 if invalidated
                     setup.isInvalidated := true
-                    if breaker_discard_invalidated
-                        deleteBreakerSetup(setup)
-                        array.remove(breaker_setups, idx)
-                        continue
-                    else
-                        box.set_border_color(setup.breakerBox, breaker_inactive_color)
-                        box.set_bgcolor(setup.breakerBox, breaker_inactive_color)
-                        if not na(setup.fvgBox)
-                            box.set_bgcolor(setup.fvgBox, breaker_inactive_color)
-                            label.set_textcolor(setup.setupLabel, universalColor(color.gray))
-                        if array.size(setup.targetLines) > 0
-                            for l in setup.targetLines
-                                line.delete(l)
-                        if array.size(setup.targetLabels) > 0
-                            for lb in setup.targetLabels
-                                label.delete(lb)
-                        array.clear(setup.targetLines)
-                        array.clear(setup.targetLabels)
+                    box.set_border_color(setup.breakerBox, breaker_inactive_color)
+                    box.set_bgcolor(setup.breakerBox, breaker_inactive_color)
+                    if not na(setup.fvgBox)
+                        box.set_bgcolor(setup.fvgBox, breaker_inactive_color)
+                        label.set_textcolor(setup.setupLabel, universalColor(color.gray))
+                    if array.size(setup.targetLines) > 0
+                        for l in setup.targetLines
+                            line.delete(l)
+                    if array.size(setup.targetLabels) > 0
+                        for lb in setup.targetLabels
+                            label.delete(lb)
+                    array.clear(setup.targetLines)
+                    array.clear(setup.targetLabels)
                 else
                     box.set_right(setup.breakerBox, bar_index)
                     label.set_x(setup.setupLabel, bar_index)
@@ -1515,7 +1470,6 @@ updateBreakerSetups() =>
                             targetVal = line.get_y1(l)
                             targetHit = setup.dir == "BULL" ? high >= targetVal : low <= targetVal
                             if targetHit
-                                setup.isTargetHit := true
                                 line.delete(l)
                                 label.delete(lb)
                                 array.remove(setup.targetLines, i)
@@ -2431,47 +2385,17 @@ while invalidation_lines.size() > projection_sets_to_keep and invalidation_lines
         label.delete(old_inv_label)
 trimHTFDividerLines()
 cleanChartSetupHistory()
-[breaker_auto_a, breaker_auto_b, breaker_auto_c, breaker_auto_d] = breakerAutoHTFs()
-breaker_auto_a_valid = breaker_auto_a != ""
-breaker_htf_a = breaker_auto_a_valid ? breaker_auto_a : timeframe.period
-breaker_htf_b = breaker_auto_b
-breaker_htf_c = breaker_auto_c
-breaker_htf_d = breaker_auto_d
-[breaker_prev_high_a, breaker_prev_low_a, breaker_swing_high_a, breaker_swing_low_a] = request.security(syminfo.tickerid, breaker_htf_a, breakerHTFData(), barmerge.gaps_off, barmerge.lookahead_off)
-[breaker_prev_high_b, breaker_prev_low_b, breaker_swing_high_b, breaker_swing_low_b] = request.security(syminfo.tickerid, breaker_htf_b, breakerHTFData(), barmerge.gaps_off, barmerge.lookahead_off)
-[breaker_prev_high_c, breaker_prev_low_c, breaker_swing_high_c, breaker_swing_low_c] = request.security(syminfo.tickerid, breaker_htf_c, breakerHTFData(), barmerge.gaps_off, barmerge.lookahead_off)
-[breaker_prev_high_d, breaker_prev_low_d, breaker_swing_high_d, breaker_swing_low_d] = request.security(syminfo.tickerid, breaker_htf_d, breakerHTFData(), barmerge.gaps_off, barmerge.lookahead_off)
-if not enable_breaker_model
-    clearBreakerSetups()
-    breaker_pending_bull_sweep_idx := na
-    breaker_pending_bull_first_sweep_bar := na
-    breaker_pending_bull_extreme := na
-    breaker_pending_bull_level := na
-    breaker_pending_bull_level_start_bar := na
-    breaker_pending_bull_label_text := ""
-    breaker_pending_bear_sweep_idx := na
-    breaker_pending_bear_first_sweep_bar := na
-    breaker_pending_bear_extreme := na
-    breaker_pending_bear_level := na
-    breaker_pending_bear_level_start_bar := na
-    breaker_pending_bear_label_text := ""
-    breaker_last_prev_high_a := na
-    breaker_last_prev_low_a := na
-    breaker_last_swing_high_a := na
-    breaker_last_swing_low_a := na
-    breaker_last_prev_high_b := na
-    breaker_last_prev_low_b := na
-    breaker_last_swing_high_b := na
-    breaker_last_swing_low_b := na
-    breaker_last_prev_high_c := na
-    breaker_last_prev_low_c := na
-    breaker_last_swing_high_c := na
-    breaker_last_swing_low_c := na
-    breaker_last_prev_high_d := na
-    breaker_last_prev_low_d := na
-    breaker_last_swing_high_d := na
-    breaker_last_swing_low_d := na
-else
+if enable_breaker_model
+    [breaker_auto_a, breaker_auto_b, breaker_auto_c, breaker_auto_d] = breakerAutoHTFs()
+    breaker_auto_a_valid = breaker_auto_a != ""
+    breaker_htf_a = breaker_auto_a_valid ? breaker_auto_a : timeframe.period
+    breaker_htf_b = breaker_auto_b
+    breaker_htf_c = breaker_auto_c
+    breaker_htf_d = breaker_auto_d
+    [breaker_prev_high_a, breaker_prev_low_a, breaker_swing_high_a, breaker_swing_low_a] = request.security(syminfo.tickerid, breaker_htf_a, breakerHTFData(), barmerge.gaps_off, barmerge.lookahead_off)
+    [breaker_prev_high_b, breaker_prev_low_b, breaker_swing_high_b, breaker_swing_low_b] = request.security(syminfo.tickerid, breaker_htf_b, breakerHTFData(), barmerge.gaps_off, barmerge.lookahead_off)
+    [breaker_prev_high_c, breaker_prev_low_c, breaker_swing_high_c, breaker_swing_low_c] = request.security(syminfo.tickerid, breaker_htf_c, breakerHTFData(), barmerge.gaps_off, barmerge.lookahead_off)
+    [breaker_prev_high_d, breaker_prev_low_d, breaker_swing_high_d, breaker_swing_low_d] = request.security(syminfo.tickerid, breaker_htf_d, breakerHTFData(), barmerge.gaps_off, barmerge.lookahead_off)
     if breaker_auto_a_valid
         if breaker_prev_high_a != breaker_last_prev_high_a or (na(breaker_last_prev_high_a) and not na(breaker_prev_high_a))
             breaker_last_prev_high_a := breaker_prev_high_a
@@ -2554,8 +2478,6 @@ else
                     else if lvl.price == breaker_swept_bear_price and not str.contains(breaker_swept_bear_label, lvl.labelText)
                         breaker_swept_bear_label := breaker_swept_bear_label + ", " + lvl.labelText
             if swept
-                lvl.isSwept := true
-                lvl.sweepBar := bar_index
                 array.remove(breaker_active_levels, idx)
     while breaker_active_levels.size() > 100
         array.shift(breaker_active_levels)
@@ -2584,15 +2506,15 @@ else
         [breaker_bull_start_offset, breaker_bull_end_offset] = breakerFindUpCandlesSeries(breaker_bull_sweep_offset)
         if not na(breaker_bull_start_offset)
             [breaker_bull_top, breaker_bull_bottom] = breakerSeriesRange(breaker_bull_start_offset, breaker_bull_end_offset)
-            if close > breaker_bull_top and breaker_bull_bottom >= breaker_pending_bull_extreme and breakerSizeFilter(breaker_bull_top, breaker_bull_bottom)
+            if close > breaker_bull_top and breaker_bull_bottom >= breaker_pending_bull_extreme
                 breaker_bull_start_bar = bar_index - breaker_bull_end_offset
                 [breaker_bull_fvg_top, breaker_bull_fvg_bottom, breaker_bull_fvg_left, breaker_bull_fvg_right] = breakerFindBullishFVG(breaker_bull_top, breaker_bull_bottom, breaker_bull_start_bar)
                 breaker_bull_has_fvg = not na(breaker_bull_fvg_left)
-                if not breaker_require_fvg or breaker_bull_has_fvg
-                    breaker_bull_invalidation = breaker_use_sweep_invalidation ? breaker_pending_bull_extreme : breaker_bull_bottom
+                if breaker_bull_has_fvg
+                    breaker_bull_invalidation = breaker_bull_bottom
                     breaker_bull_risk = close - breaker_bull_invalidation
                     if breaker_bull_risk > 0
-                        addBreakerSetup(true, breaker_bull_start_offset, breaker_bull_end_offset, breaker_pending_bull_first_sweep_bar, breaker_pending_bull_level_start_bar, breaker_pending_bull_label_text, breaker_bull_top, breaker_bull_bottom, breaker_pending_bull_level, breaker_bull_invalidation, breaker_bull_has_fvg, breaker_bull_fvg_top, breaker_bull_fvg_bottom, breaker_bull_fvg_left, breaker_bull_fvg_right)
+                        addBreakerSetup(true, breaker_bull_end_offset, breaker_pending_bull_first_sweep_bar, breaker_pending_bull_level_start_bar, breaker_pending_bull_label_text, breaker_bull_top, breaker_bull_bottom, breaker_pending_bull_level, breaker_bull_invalidation, breaker_bull_fvg_top, breaker_bull_fvg_bottom, breaker_bull_fvg_left, breaker_bull_fvg_right)
                         breaker_pending_bull_sweep_idx := na
                         breaker_pending_bull_first_sweep_bar := na
     if not na(breaker_pending_bear_sweep_idx)
@@ -2600,15 +2522,15 @@ else
         [breaker_bear_start_offset, breaker_bear_end_offset] = breakerFindDownCandlesSeries(breaker_bear_sweep_offset)
         if not na(breaker_bear_start_offset)
             [breaker_bear_top, breaker_bear_bottom] = breakerSeriesRange(breaker_bear_start_offset, breaker_bear_end_offset)
-            if close < breaker_bear_bottom and breaker_bear_top <= breaker_pending_bear_extreme and breakerSizeFilter(breaker_bear_top, breaker_bear_bottom)
+            if close < breaker_bear_bottom and breaker_bear_top <= breaker_pending_bear_extreme
                 breaker_bear_start_bar = bar_index - breaker_bear_end_offset
                 [breaker_bear_fvg_top, breaker_bear_fvg_bottom, breaker_bear_fvg_left, breaker_bear_fvg_right] = breakerFindBearishFVG(breaker_bear_top, breaker_bear_bottom, breaker_bear_start_bar)
                 breaker_bear_has_fvg = not na(breaker_bear_fvg_left)
-                if not breaker_require_fvg or breaker_bear_has_fvg
-                    breaker_bear_invalidation = breaker_use_sweep_invalidation ? breaker_pending_bear_extreme : breaker_bear_top
+                if breaker_bear_has_fvg
+                    breaker_bear_invalidation = breaker_bear_top
                     breaker_bear_risk = breaker_bear_invalidation - close
                     if breaker_bear_risk > 0
-                        addBreakerSetup(false, breaker_bear_start_offset, breaker_bear_end_offset, breaker_pending_bear_first_sweep_bar, breaker_pending_bear_level_start_bar, breaker_pending_bear_label_text, breaker_bear_top, breaker_bear_bottom, breaker_pending_bear_level, breaker_bear_invalidation, breaker_bear_has_fvg, breaker_bear_fvg_top, breaker_bear_fvg_bottom, breaker_bear_fvg_left, breaker_bear_fvg_right)
+                        addBreakerSetup(false, breaker_bear_end_offset, breaker_pending_bear_first_sweep_bar, breaker_pending_bear_level_start_bar, breaker_pending_bear_label_text, breaker_bear_top, breaker_bear_bottom, breaker_pending_bear_level, breaker_bear_invalidation, breaker_bear_fvg_top, breaker_bear_fvg_bottom, breaker_bear_fvg_left, breaker_bear_fvg_right)
                         breaker_pending_bear_sweep_idx := na
                         breaker_pending_bear_first_sweep_bar := na
     updateBreakerSetups()
