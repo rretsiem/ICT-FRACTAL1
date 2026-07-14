@@ -1597,7 +1597,7 @@ method Monitor(CandleSet candleSet) =>
         divider_window_bars = int(math.ceil((htf_tf_seconds / chart_tf_seconds) * max_htf_divider_lines))
         draw_recent_divider = bar_index >= last_bar_index - divider_window_bars
         if candleSet.settings.htf_line_show and draw_recent_divider
-            line newLine = line.new(x1=bar_index, y1=0, x2=bar_index, y2=1, color=candleSet.settings.htf_line_color, style=lineStyle, width=candleSet.settings.htf_line_width, extend=extend.both)
+            line newLine = line.new(x1=bar_index, y1=low, x2=bar_index, y2=high, color=candleSet.settings.htf_line_color, style=lineStyle, width=candleSet.settings.htf_line_width, extend=extend.both)
             candleSet.htf_starts.unshift(newLine)
         divider_line_limit = max_htf_divider_lines
         while candleSet.htf_starts.size() > divider_line_limit
