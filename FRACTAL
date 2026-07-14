@@ -2112,7 +2112,7 @@ method Update(CandleSet candleSet, int offset, bool showTrace) =>
                                 alerts.shortCisdConfirmed := true
                             if enable_alerts and alert_cisd_confirmed
                                 CAL.customAlert(alertFormat, (live_is_bullish ? "CISD C2 Long" : "CISD C2 Short") + " confirmed on candle close on " + syminfo.ticker + " (" + candleSet.settings.htf + ")")
-                        if fib_trigger_on == "Both" or fib_trigger_on == "CISD" or fib_trigger_on == "Confirmation"
+                        if live_cisd_created and (fib_trigger_on == "Both" or fib_trigger_on == "CISD" or fib_trigger_on == "Confirmation")
                             drawRiskPackage(live_c2_bar, live_break_bar, live_c2_level, live_series_extreme, live_is_bullish, end_bar)
                             if array.size(active_setup_live_flags) > 0
                                 array.set(active_setup_live_flags, 0, true)
