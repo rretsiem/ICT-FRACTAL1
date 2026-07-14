@@ -1,7 +1,6 @@
 //@version=6
-indicator("Fractal ICT", shorttitle = "Fractal ICT", overlay = true, max_bars_back = 5000, max_boxes_count = 500, max_lines_count = 500, max_labels_count = 500)
+indicator("Fractal ICT", shorttitle = "FractalICT", overlay = true, max_bars_back = 5000, max_boxes_count = 500, max_lines_count = 500, max_labels_count = 500)
 import mindyourbuisness/CustomAlertLib/3 as CAL
-TEMPLATE_COLOR = input.color(color.black, "Template Color", group="1 - GENERAL")
 use_universal_line_text_color = input.bool(false, "Use Universal Line/Text Color", group="1 - GENERAL")
 universal_line_text_color = input.color(color.white, "Universal Color", group="1 - GENERAL", active=use_universal_line_text_color)
 universalColor(color baseColor) =>
@@ -36,15 +35,9 @@ type Trace
     label           h_l
     label           l_l
 type LiveSignalState
-    box             fractal_box
-    line            fractal_midline
-    line            fractal_closeline
     line            sweep_line
     line            cisd_line
-    label           c2_label
-    label           cx_label
     int             signal_start_bar
-    bool            setup_allows_cisd
 type BreakerSetup
     string          dir
     int             sweepIndex
@@ -90,7 +83,6 @@ type AlertState
     bool            bearishC2Closed
 type Imbalance
     box             b
-    int             idx
 type CandleSettings
     bool            show
     string          htf
@@ -104,10 +96,6 @@ type CandleSettings
     color           midpoint_color
     string          midpoint_style
     int             midpoint_width
-    bool            chart_sweeps_show
-    color           chart_sweeps_color
-    string          chart_sweeps_style
-    int             chart_sweeps_width
 type Settings
     int             max_sets
     color           bull_body
@@ -141,24 +129,13 @@ type Settings
     color           fvg_color
     bool            pfvg_show
     color           pfvg_color
-    color           pfvg_bull_color
-    color           pfvg_bear_color
-    color           pfvg_inverted_color
-    bool            pfvg_midpoint_show
-    color           pfvg_midpoint_color
-    string          pfvg_midpoint_style
-    int             pfvg_midpoint_width
     bool            pfvg_show_all
     int             pfvg_max_display
     bool            pfvg_only_with_fractal
     bool            vi_show
     color           vi_color
-    bool            htf_label_show
     color           htf_label_color
     string          htf_label_size
-    bool            htf_timer_show
-    color           htf_timer_color
-    string          htf_timer_size
     bool            htf_line_show
     color           htf_line_color
     int             htf_line_width
@@ -170,7 +147,6 @@ type CandleSet
     Imbalance[]     imbalances
     CandleSettings  settings
     label           tfName
-    label           tfTimer
     line[]          htf_starts
     line[]          mini_sweeps
     line[]          mini_midpoints
@@ -283,12 +259,10 @@ nextHTF(string baseHtf) =>
         "1M"
     else
         "3M"
-monospace_labels = input.bool(true, "Monospace Font for Labels", group=GRP_GENERAL)
 htf_mode = input.string("Auto", "HTF Detection Mode", options=["Auto", "Custom"], group=GRP_GENERAL)
 custom_htf = input.timeframe("1W", "Custom Timeframe (if Custom mode)", options=["10", "15", "30", "45", "60", "90", "120", "180", "240", "360", "420", "1D", "1W", "1M", "3M"], group=GRP_GENERAL, active=htf_mode == "Custom")
 use_actual_day_change = input.bool(false, "Use Actual Day Change for Daily HTF", group=GRP_GENERAL, tooltip="When enabled, uses dayofmonth() comparison instead of ta.change() for daily timeframe detection.")
 fractal_bias = input.string("None", "Manual T-Spot Bias", options=["None", "Bullish", "Bearish"], group=GRP_GENERAL)
-auto_tspot_bias = input.string("Disabled", "Auto Bias (from HTF sweep)", options=["Disabled", "Enabled"], group=GRP_GENERAL)
 htf_1 = if htf_mode == "Auto"
     tf = timeframe.in_seconds(timeframe.period)
     if tf <= timeframe.in_seconds("1")
@@ -344,26 +318,14 @@ settings.bear_wick := input.color(color.black, "Bearish Wick", inline="wick", gr
 settings.offset := input.int(20, "Padding from current candles", minval=1, group=GRP_CANDLES)
 settings.buffer := input.int(1, "Space between candles", minval=1, maxval=4, group=GRP_CANDLES)
 settings.htf_buffer := input.int(5, "Space between HTF groups", minval=1, maxval=20, group=GRP_CANDLES)
-show_interval_inside_candle = input.bool(false, "Show Interval Value inside candle", inline="inside", group=GRP_CANDLES)
-interval_bull_text_color = universalColor(input.color(color.white, "Bull text", inline="inside", group=GRP_CANDLES, active=show_interval_inside_candle))
-interval_bear_text_color = universalColor(input.color(color.white, "Bear text", inline="inside", group=GRP_CANDLES, active=show_interval_inside_candle))
-interval_label_size = input.string("Auto", "Size", options=["Auto", SIZE_TINY, SIZE_SMALL, SIZE_NORMAL, SIZE_LARGE, SIZE_HUGE], inline="inside2", group=GRP_CANDLES, active=show_interval_inside_candle)
-center_interval_label = input.bool(false, "Center label", inline="inside2", group=GRP_CANDLES, active=show_interval_inside_candle)
-htf_label_show_input = input.bool(true, "Show HTF Timeframe Label", inline="HTFlabel", group=GRP_CANDLES)
-settings.htf_label_show := htf_label_show_input
-settings.htf_label_color := universalColor(input.color(color.black, "", inline="HTFlabel", group=GRP_CANDLES, active=htf_label_show_input))
-settings.htf_label_size := input.string(SIZE_NORMAL, "", options=[SIZE_TINY, SIZE_SMALL, SIZE_NORMAL, SIZE_LARGE, SIZE_HUGE], inline="HTFlabel", group=GRP_CANDLES, active=htf_label_show_input)
-htf_timer_show_input = input.bool(true, "Show Remaining Time", inline="timer", group=GRP_CANDLES)
-settings.htf_timer_show := htf_timer_show_input
-settings.htf_timer_color := universalColor(input.color(color.black, "", inline="timer", group=GRP_CANDLES, active=htf_timer_show_input))
-settings.htf_timer_size := input.string(SIZE_NORMAL, "", options=[SIZE_TINY, SIZE_SMALL, SIZE_NORMAL, SIZE_LARGE, SIZE_HUGE], inline="timer", group=GRP_CANDLES, active=htf_timer_show_input)
+settings.htf_label_color := universalColor(input.color(color.black, "HTF Timeframe Label", inline="HTFlabel", group=GRP_CANDLES))
+settings.htf_label_size := input.string(SIZE_NORMAL, "", options=[SIZE_TINY, SIZE_SMALL, SIZE_NORMAL, SIZE_LARGE, SIZE_HUGE], inline="HTFlabel", group=GRP_CANDLES)
 price_label_show_input = input.bool(false, "Show Price Labels", inline="price", group=GRP_CANDLES)
 settings.label_show := price_label_show_input
 settings.label_color := universalColor(input.color(color.new(#eaeaea, 10), "", inline="price", group=GRP_CANDLES, active=price_label_show_input))
 settings.label_size := input.string(SIZE_SMALL, "", options=[SIZE_TINY, SIZE_SMALL, SIZE_NORMAL, SIZE_LARGE, SIZE_HUGE], inline="price", group=GRP_CANDLES, active=price_label_show_input)
 show_fractal = input.bool(true, "Enable T-Spot Detection", group=GRP_TSPOT)
 tspot_detect_on = input.string("HTF1 Only", "Detect T-Spots on", options=["HTF1 Only", "All shown HTFs"], group=GRP_TSPOT, active=show_fractal)
-extend_latest_fractal = input.bool(false, "Extend Latest T-Spot to Current Bar", group=GRP_TSPOT, active=show_fractal)
 show_only_latest_fractal = input.bool(true, "Show Only Latest T-Spot", group=GRP_TSPOT, active=show_fractal)
 tspot_history = input.int(0, "History (0 = unlimited)", minval=0, group=GRP_TSPOT, active=show_fractal)
 show_only_latest_sweep = input.bool(true, "Show Only Latest Sweep", group=GRP_TSPOT, active=show_fractal)
@@ -374,7 +336,6 @@ fractal_transparency = input.int(90, "T-Spot Box Transparency", minval=0, maxval
 settings.midline_width := input.int(1, "Midline Width", minval=1, maxval=4, group=GRP_TSPOT, active=show_fractal)
 show_silver_fractal = input.bool(true, "Show Silver T-Spot", group=GRP_TSPOT, active=show_fractal)
 hide_against_fractals = input.bool(true, "Hide T-Spots When Price Trades Against", group=GRP_TSPOT, active=show_fractal)
-delete_against_fractals = false
 usebody_for_confirmation = input.bool(true, "Use Candle Body for Pivot Detection", group=GRP_TSPOT, active=show_fractal)
 show_live_developing_signals = input.bool(true, "Show Live Developing CISD", group=GRP_TSPOT, tooltip="Calculates developing T-Spot logic in the background while the active HTF candle forms, but only draws confirmed T-Spots from C3 start. Live CISD can repaint before candle close.", active=show_fractal)
 show_structure_labels = input.bool(true, "Show C2 / C3 / C4 Labels on Chart", inline="chartLabels", group=GRP_TSPOT_LABELS)
@@ -382,16 +343,13 @@ structure_label_size = input.string(SIZE_SMALL, "Size", options=[SIZE_TINY, SIZE
 show_custom_c2_label = input.bool(false, "Show Custom C2 Label", group=GRP_TSPOT_LABELS)
 c2_bull_text = input.string("C2 Bull", "Bull text", inline="customC2", group=GRP_TSPOT_LABELS, active=show_custom_c2_label)
 c2_bear_text = input.string("C2 Bear", "Bear text", inline="customC2", group=GRP_TSPOT_LABELS, active=show_custom_c2_label)
-custom_c2_label_size = input.string(SIZE_SMALL, "Size", options=[SIZE_TINY, SIZE_SMALL, SIZE_NORMAL, SIZE_LARGE, SIZE_HUGE], group=GRP_TSPOT_LABELS, active=show_custom_c2_label)
 show_tspot_mini_labels = input.bool(false, "Show T-Spot Labels on HTF Mini-Display", inline="miniLabels", group=GRP_TSPOT_LABELS)
-tspot_mini_label_size = input.string(SIZE_SMALL, "Size", options=[SIZE_TINY, SIZE_SMALL, SIZE_NORMAL, SIZE_LARGE, SIZE_HUGE], inline="miniLabels", group=GRP_TSPOT_LABELS, active=show_tspot_mini_labels)
 c2_bull_mini_text = input.string("C2", "C2 Bull", inline="mini1", group=GRP_TSPOT_LABELS, active=show_tspot_mini_labels)
 c3_bull_mini_text = input.string("C3", "C3 Bull", inline="mini1", group=GRP_TSPOT_LABELS, active=show_tspot_mini_labels)
 c4_bull_mini_text = input.string("C4", "C4 Bull", inline="mini1", group=GRP_TSPOT_LABELS, active=show_tspot_mini_labels)
 c2_bear_mini_text = input.string("C2", "C2 Bear", inline="mini2", group=GRP_TSPOT_LABELS, active=show_tspot_mini_labels)
 c3_bear_mini_text = input.string("C3", "C3 Bear", inline="mini2", group=GRP_TSPOT_LABELS, active=show_tspot_mini_labels)
 c4_bear_mini_text = input.string("C4", "C4 Bear", inline="mini2", group=GRP_TSPOT_LABELS, active=show_tspot_mini_labels)
-fractal_sweep_label_size = structure_label_size
 show_htf_candle_sweeps = input.bool(true, "Show HTF Candle Sweeps (mini-display)", inline="miniSweeps", group=GRP_SWEEP_OB)
 htf_candle_sweep_color = universalColor(input.color(color.black, "Color", inline="miniSweeps", group=GRP_SWEEP_OB, active=show_htf_candle_sweeps))
 htf_candle_sweep_style = input.string(LINE_STYLE_DOTTED, "Style", options=[LINE_STYLE_SOLID, LINE_STYLE_DASHED, LINE_STYLE_DOTTED], inline="miniSweeps", group=GRP_SWEEP_OB, active=show_htf_candle_sweeps)
@@ -402,14 +360,6 @@ settings.show_chart_sweeps := chart_sweeps_show_input
 htf1_sweep_color = universalColor(input.color(color.black, "Color", inline="sweep1", group=GRP_SWEEP_OB, active=chart_sweeps_show_input))
 htf1_sweep_style = input.string(LINE_STYLE_SOLID, "Style", options=[LINE_STYLE_SOLID, LINE_STYLE_DASHED, LINE_STYLE_DOTTED], inline="sweep1b", group=GRP_SWEEP_OB, active=chart_sweeps_show_input)
 htf1_sweep_width = input.int(1, "Width", minval=1, maxval=4, inline="sweep1b", group=GRP_SWEEP_OB, active=chart_sweeps_show_input)
-htf2_sweep_show = input.bool(false, "HTF2 Sweeps on LTF Chart", inline="sweep2", group=GRP_SWEEP_OB)
-htf2_sweep_color = universalColor(input.color(color.blue, "Color", inline="sweep2", group=GRP_SWEEP_OB, active=htf2_sweep_show))
-htf2_sweep_style = input.string(LINE_STYLE_SOLID, "Style", options=[LINE_STYLE_SOLID, LINE_STYLE_DASHED, LINE_STYLE_DOTTED], inline="sweep2b", group=GRP_SWEEP_OB, active=htf2_sweep_show)
-htf2_sweep_width = input.int(1, "Width", minval=1, maxval=4, inline="sweep2b", group=GRP_SWEEP_OB, active=htf2_sweep_show)
-htf3_sweep_show = input.bool(false, "HTF3 Sweeps on LTF Chart", inline="sweep3", group=GRP_SWEEP_OB)
-htf3_sweep_color = universalColor(input.color(color.purple, "Color", inline="sweep3", group=GRP_SWEEP_OB, active=htf3_sweep_show))
-htf3_sweep_style = input.string(LINE_STYLE_SOLID, "Style", options=[LINE_STYLE_SOLID, LINE_STYLE_DASHED, LINE_STYLE_DOTTED], inline="sweep3b", group=GRP_SWEEP_OB, active=htf3_sweep_show)
-htf3_sweep_width = input.int(1, "Width", minval=1, maxval=4, inline="sweep3b", group=GRP_SWEEP_OB, active=htf3_sweep_show)
 enable_continuation_ob = input.bool(true, "Enable Continuation OB Detection", group=GRP_SWEEP_OB)
 show_continuation_ob_lines = input.bool(true, "Show Continuation OB Lines", group=GRP_SWEEP_OB, active=enable_continuation_ob)
 ob_bull_color = universalColor(input.color(color.new(color.green, 20), "OB+ (Bullish)", inline="obp", group=GRP_SWEEP_OB, active=enable_continuation_ob and show_continuation_ob_lines))
@@ -424,10 +374,6 @@ ob_bull_text = input.string("OB+", "Bull text", inline="obl", group=GRP_SWEEP_OB
 ob_bear_text = input.string("OB-", "Bear text", inline="obl2", group=GRP_SWEEP_OB, active=enable_continuation_ob and show_continuation_ob_lines and show_ob_label)
 ob_label_size = input.string(SIZE_SMALL, "Size", options=[SIZE_TINY, SIZE_SMALL, SIZE_NORMAL, SIZE_LARGE, SIZE_HUGE], inline="obl2", group=GRP_SWEEP_OB, active=enable_continuation_ob and show_continuation_ob_lines and show_ob_label)
 show_fractal_sweeps = true
-fractal_sweep_label_color = universalColor(color.white)
-show_confirmation_lines = true
-show_confirmation_labels = true
-confirmation_line_style = fractal_line_style
 enable_breaker_model = input.bool(false, "Enable Breaker Model", group=GRP_BREAKER)
 breaker_history = 1
 breaker_require_fvg = true
@@ -456,15 +402,7 @@ pfvg_show_input = input.bool(false, "Show First Presented FVG (PFVG)", group=GRP
 settings.pfvg_show := pfvg_show_input
 settings.pfvg_show_all := input.bool(false, "Show All PFVGs", group=GRP_IMBALANCE, active=pfvg_show_input)
 settings.pfvg_max_display := input.int(4, "Max PFVGs to display", minval=1, maxval=20, group=GRP_IMBALANCE, active=pfvg_show_input)
-settings.pfvg_bull_color := input.color(color.new(color.green, 70), "Bull PFVG", inline="pfvgCols", group=GRP_IMBALANCE, active=pfvg_show_input)
-settings.pfvg_bear_color := input.color(color.new(color.red, 70), "Bear PFVG", inline="pfvgCols", group=GRP_IMBALANCE, active=pfvg_show_input)
-settings.pfvg_inverted_color := input.color(color.new(color.orange, 70), "Inverted PFVG", inline="pfvgCols", group=GRP_IMBALANCE, active=pfvg_show_input)
-settings.pfvg_color := settings.pfvg_bull_color
-pfvg_midpoint_show_input = input.bool(false, "PFVG Midpoint Line", inline="pfvgMid", group=GRP_IMBALANCE, active=pfvg_show_input)
-settings.pfvg_midpoint_show := pfvg_midpoint_show_input
-settings.pfvg_midpoint_color := universalColor(input.color(color.blue, "Color", inline="pfvgMid", group=GRP_IMBALANCE, active=pfvg_show_input and pfvg_midpoint_show_input))
-settings.pfvg_midpoint_style := input.string(LINE_STYLE_DOTTED, "Style", options=[LINE_STYLE_SOLID, LINE_STYLE_DASHED, LINE_STYLE_DOTTED], inline="pfvgMid2", group=GRP_IMBALANCE, active=pfvg_show_input and pfvg_midpoint_show_input)
-settings.pfvg_midpoint_width := input.int(1, "Width", minval=1, maxval=4, inline="pfvgMid2", group=GRP_IMBALANCE, active=pfvg_show_input and pfvg_midpoint_show_input)
+settings.pfvg_color := input.color(color.new(color.green, 70), "Bull PFVG", group=GRP_IMBALANCE, active=pfvg_show_input)
 vi_show_input = input.bool(true, "Show Volume Imbalance (VI)", inline="vi", group=GRP_IMBALANCE)
 settings.vi_show := vi_show_input
 settings.vi_color := input.color(color.new(color.orange, 50), "Color", inline="vi", group=GRP_IMBALANCE, active=vi_show_input)
@@ -472,14 +410,12 @@ settings.pfvg_only_with_fractal := false
 show_cisd = input.bool(true, "Show CISD Lines", group=GRP_CISD)
 bull_cisd_color = universalColor(input.color(color.new(color.green, 0), "Bull CISD Color", inline="cisdCols", group=GRP_CISD, active=show_cisd))
 bear_cisd_color = universalColor(input.color(color.new(color.red, 0), "Bear CISD Color", inline="cisdCols", group=GRP_CISD, active=show_cisd))
-cisd_color = bull_cisd_color
 cisd_width = input.int(1, "CISD Line Width", minval=1, maxval=5, group=GRP_CISD, active=show_cisd)
 show_cisd_label = input.bool(false, "Show CISD Label", inline="cisdLbl", group=GRP_CISD, active=show_cisd)
 bull_cisd_text = input.string("CISD", "Bull text", inline="cisdLbl", group=GRP_CISD, active=show_cisd and show_cisd_label)
 bear_cisd_text = input.string("CISD", "Bear text", inline="cisdLbl2", group=GRP_CISD, active=show_cisd and show_cisd_label)
 cisd_label_size = input.string(SIZE_SMALL, "Size", options=[SIZE_TINY, SIZE_SMALL, SIZE_NORMAL, SIZE_LARGE, SIZE_HUGE], inline="cisdLbl2", group=GRP_CISD, active=show_cisd and show_cisd_label)
 cisd_show_all = input.bool(false, "Show All CISD Lines", group=GRP_CISD, active=show_cisd)
-cisd_invalidation_trigger = input.string("Close", "CISD Invalidation Trigger", options=["Close", "Wick"], group=GRP_CISD, active=show_cisd)
 show_projections = input.bool(true, "Show Fib Projections", group=GRP_CISD, active=show_cisd)
 fib_trigger_on = input.string("CISD", "Trigger Fib On", options=["CISD", "Both", "Confirmation"], group=GRP_CISD, active=show_cisd and show_projections)
 keep_both_fibs = input.bool(false, "Keep Both Fibs (CISD + Confirmation)", group=GRP_CISD, active=show_cisd and show_projections)
@@ -491,7 +427,6 @@ invalidation_label_color = universalColor(input.color(color.gray, "Color", inlin
 invalidation_label_style = input.string(LINE_STYLE_DASHED, "Style", options=[LINE_STYLE_SOLID, LINE_STYLE_DASHED, LINE_STYLE_DOTTED], inline="inv", group=GRP_CISD, active=show_cisd)
 bull_levels_color = universalColor(input.color(color.new(color.green, 0), "Bull levels color", inline="fibCols", group=GRP_CISD, active=show_cisd and show_projections))
 bear_levels_color = universalColor(input.color(color.new(color.red, 0), "Bear levels color", inline="fibCols", group=GRP_CISD, active=show_cisd and show_projections))
-projection_color = bull_levels_color
 fib_label_side = input.string("Right", "Label Side", options=["Right", "Left"], group=GRP_CISD, active=show_cisd and show_projections)
 projection_label_size = input.string(SIZE_TINY, "Label Size", options=[SIZE_TINY, SIZE_SMALL, SIZE_NORMAL, SIZE_LARGE, SIZE_HUGE], group=GRP_CISD, active=show_cisd and show_projections)
 fib_line_style = input.string(LINE_STYLE_DOTTED, "Fib Line Style", options=[LINE_STYLE_SOLID, LINE_STYLE_DASHED, LINE_STYLE_DOTTED], group=GRP_CISD, active=show_cisd and show_projections)
@@ -557,12 +492,6 @@ table_size = input.string(SIZE_SMALL, "Text Size", options=[SIZE_TINY, SIZE_SMAL
 table_border_width = input.int(1, "Border Width", minval=0, maxval=5, inline="tableFrame", group=GRP_DISPLAY, active=show_table)
 table_frame_color = universalColor(input.color(color.black, "Frame Color", inline="tableFrame", group=GRP_DISPLAY, active=show_table))
 table_frame_width = input.int(1, "Frame Width", minval=0, maxval=5, group=GRP_DISPLAY, active=show_table)
-enable_time_filter = input.bool(false, "Enable Time Filter", group=GRP_DISPLAY)
-time_filter_timezone = input.string("America/New_York", "Timezone", group=GRP_DISPLAY, active=enable_time_filter)
-time_window_1 = input.session("0800-1000", "Window 1", group=GRP_DISPLAY, active=enable_time_filter)
-time_window_2 = input.session("1000-1200", "Window 2", group=GRP_DISPLAY, active=enable_time_filter)
-time_window_3 = input.session("1300-1600", "Window 3", group=GRP_DISPLAY, active=enable_time_filter)
-time_window_4 = input.session("1600-1800", "Window 4", group=GRP_DISPLAY, active=enable_time_filter)
 alertFormat = input.text_area('{"ticker":"{ticker}", "interval":"{interval}", "alert":"{default}"}', "Custom Alert Message Format", group=GRP_DISPLAY)
 enable_alerts = input.bool(true, "Enable Alerts", group=GRP_DISPLAY)
 alert_cisd_live = input.bool(true, "C2 CISD Live", group=GRP_DISPLAY, active=enable_alerts)
@@ -604,14 +533,12 @@ tspotC3Text(bool bullish) =>
     bullish ? c3_bull_mini_text : c3_bear_mini_text
 tspotC4Text(bool bullish) =>
     bullish ? c4_bull_mini_text : c4_bear_mini_text
-var line[] htf_lines = array.new_line(0)
 int max_htf_divider_lines = 3
 var box[] fractal_boxes = array.new_box(0)
 var bool[] fractal_setup_flags = array.new_bool(0)
 var line[] fractal_midlines = array.new_line(0)
 var line[] fractal_closelines = array.new_line(0)
 var line[] sweep_lines = array.new_line(0)
-var line[] midpoint_lines = array.new_line(0)
 var label[] c2_labels = array.new_label(0)
 var box[] pfvg_boxes = array.new_box(0)
 var bool pfvg_found = false
@@ -712,14 +639,9 @@ var float ny_high = na
 var float ny_low = na
 var int ny_start_bar = na
 var int current_table_rows = 3
-label_atr = ta.atr(200) / 2
-findLevelBarIndex(target_level, max_bars_back) =>
-    var int found_bar = 0
-    for i = 0 to max_bars_back
-        if high[i] == target_level or low[i] == target_level
-            found_bar := bar_index - i
-            break
-    found_bar
+atr_200 = ta.atr(200)
+atr_14 = ta.atr(14)
+label_atr = atr_200 / 2
 getContractSize() =>
     if usingProp
         ticker = syminfo.ticker
@@ -1105,27 +1027,6 @@ detectCISDAndProjections(int c2_bar, float c2_extreme_level, bool is_bullish, in
                 alerts.shortCisdConfirmed := true
             if enable_alerts and alert_cisd_confirmed and barstate.isconfirmed
                 CAL.customAlert(alertFormat, (is_bullish ? "CISD C2 Long" : "CISD C2 Short") + " confirmed on candle close on " + syminfo.ticker + " (" + source_htf + ")")
-        if false and show_projections
-            series_range = series_high - series_low
-            if series_range > 0
-                break_price = is_bullish ? series_high : series_low
-                levels = str.split(projection_levels, ",")
-                for i = 0 to array.size(levels) - 1
-                    level_str = str.trim(array.get(levels, i))
-                    if level_str != ""
-                        level = str.tonumber(level_str)
-                        if not na(level)
-                            proj_price = is_bullish ? break_price + (series_range * level) : break_price - (series_range * level)
-                            line_start = fib_x1_from_pivot ? c2_bar : break_bar
-                            line_end = extend_latest_projections ? bar_index : end_bar
-                            fib_color = is_bullish ? bull_levels_color : bear_levels_color
-                            label_x = fib_label_side == "Right" ? line_end : line_start
-                            label_style = fib_label_side == "Right" ? label.style_label_right : label.style_label_left
-                            proj_line = line.new(line_start, proj_price, line_end, proj_price, color=fib_color, style=toLineStyle(fib_line_style), width=fib_line_width)
-                            proj_label = label.new(label_x, proj_price, str.tostring(level), color=color.new(color.white, 100), textcolor=fib_color, style=label_style, size=projection_label_size, text_font_family=font.family_monospace)
-                            array.unshift(projection_lines, proj_line)
-                            array.unshift(projection_labels, proj_label)
-Helper    helper        = Helper.new()
 var Trace trace         = Trace.new()
 color color_transparent = #ffffff00
 method LineStyle(Helper helper, string style) =>
@@ -1321,16 +1222,10 @@ method Reorder(CandleSet candleSet, int offset) =>
             label.set_size(candleSet.tfName, settings.htf_label_size)
         else
             candleSet.tfName := label.new(left, label_y, lbl, color=color_transparent, textcolor=label_color, style=label.style_label_down, size=settings.htf_label_size, textalign=text.align_center, text_font_family=font.family_monospace)
-        if not na(candleSet.tfTimer)
-            label.delete(candleSet.tfTimer)
-            candleSet.tfTimer := na
     else
         if not na(candleSet.tfName)
             label.delete(candleSet.tfName)
             candleSet.tfName := na
-        if not na(candleSet.tfTimer)
-            label.delete(candleSet.tfTimer)
-            candleSet.tfTimer := na
     int divider_line_limit = candleSet.settings.htf_line_show ? max_htf_divider_lines : 0
     while candleSet.htf_starts.size() > divider_line_limit
         line old_start = candleSet.htf_starts.pop()
@@ -1908,29 +1803,13 @@ method Monitor(CandleSet candleSet) =>
             label.delete(old_inv_label)
     if isNewHTFCandle
         if show_live_developing_signals
-            if not na(live.fractal_box)
-                box.delete(live.fractal_box)
-                live.fractal_box := na
-            if not na(live.fractal_midline)
-                line.delete(live.fractal_midline)
-                live.fractal_midline := na
-            if not na(live.fractal_closeline)
-                line.delete(live.fractal_closeline)
-                live.fractal_closeline := na
             if not na(live.sweep_line)
                 line.delete(live.sweep_line)
                 live.sweep_line := na
             if not na(live.cisd_line)
                 line.delete(live.cisd_line)
                 live.cisd_line := na
-            if not na(live.c2_label)
-                label.delete(live.c2_label)
-                live.c2_label := na
-            if not na(live.cx_label)
-                label.delete(live.cx_label)
-                live.cx_label := na
             live.signal_start_bar := na
-            live.setup_allows_cisd := false
         lineStyle = candleSet.settings.htf_line_style
         chart_tf_seconds = timeframe.in_seconds()
         htf_tf_seconds = timeframe.in_seconds(candleSet.settings.htf)
@@ -2310,11 +2189,8 @@ method Update(CandleSet candleSet, int offset, bool showTrace) =>
             bool live_found = false
             bool live_setup_allows_cisd = false
             bool live_is_bullish = false
-            float live_box_top = na
-            float live_box_bottom = na
             float live_c2_level = na
             int live_c2_bar = 0
-            string live_cx_text = ""
             bool live_sweep_active = false
             float live_sweep_level = na
             if settings.show_chart_sweeps
@@ -2345,98 +2221,48 @@ method Update(CandleSet candleSet, int offset, bool showTrace) =>
                 live_found := true
                 live_setup_allows_cisd := true
                 live_is_bullish := false
-                live_box_top := live_sweep_mid
-                live_box_bottom := current_candle.c
                 live_c2_level := current_candle.h
                 live_c2_bar := current_candle.h_idx
-                live_cx_text := tspotC3Text(false)
             else if current_candle.l < prev_closed.l and current_candle.c > prev_closed.l and okfractal_bullish_bias and not live_inside_previous and current_candle.c > live_sweep_mid
                 live_found := true
                 live_setup_allows_cisd := true
                 live_is_bullish := true
-                live_box_top := current_candle.c
-                live_box_bottom := live_sweep_mid
                 live_c2_level := current_candle.l
                 live_c2_bar := current_candle.l_idx
-                live_cx_text := tspotC3Text(true)
             else if prev_closed.h > prev_prev_closed.h and current_candle.c < math.max(prev_closed.o, prev_closed.c) and okfractal_bearish_bias and not live_inside_previous and ((prev_closed.c >= calculateLogMidpoint(prev_closed.h, prev_closed.l, prev_closed.o, prev_closed.c)) or (prev_closed.c >= prev_prev_closed.h) or (prev_closed.h > prev_prev_closed.h and prev_closed.l < prev_prev_closed.l and prev_closed.c > prev_prev_closed.l and prev_closed.c < prev_prev_closed.h)) and current_candle.c < live_sweep_mid
                 live_found := true
                 live_is_bullish := false
-                live_box_top := live_sweep_mid
-                live_box_bottom := current_candle.c
                 live_c2_level := prev_closed.h
                 live_c2_bar := prev_closed.h_idx
-                live_cx_text := tspotC4Text(false)
             else if prev_closed.l < prev_prev_closed.l and current_candle.c > math.min(prev_closed.o, prev_closed.c) and okfractal_bullish_bias and not live_inside_previous and ((prev_closed.c <= calculateLogMidpoint(prev_closed.h, prev_closed.l, prev_closed.o, prev_closed.c)) or (prev_closed.c <= prev_prev_closed.l) or (prev_closed.h > prev_prev_closed.h and prev_closed.l < prev_prev_closed.l and prev_closed.c > prev_prev_closed.l and prev_closed.c < prev_prev_closed.h)) and current_candle.c > live_sweep_mid
                 live_found := true
                 live_is_bullish := true
-                live_box_top := current_candle.c
-                live_box_bottom := live_sweep_mid
                 live_c2_level := prev_closed.l
                 live_c2_bar := prev_closed.l_idx
-                live_cx_text := tspotC4Text(true)
             else if current_candle.l < live_mid_level and current_candle.l > prev_closed.o and current_candle.c > prev_closed.h and okfractal_bullish_bias and not live_inside_previous and current_candle.c > live_sweep_mid
                 live_found := true
                 live_is_bullish := true
-                live_box_top := current_candle.c
-                live_box_bottom := live_sweep_mid
                 live_c2_level := current_candle.l
                 live_c2_bar := current_candle.l_idx
-                live_cx_text := tspotC3Text(true)
             else if current_candle.h > live_mid_level and current_candle.h < prev_closed.o and current_candle.c < prev_closed.l and okfractal_bearish_bias and not live_inside_previous and current_candle.c < live_sweep_mid
                 live_found := true
                 live_is_bullish := false
-                live_box_top := live_sweep_mid
-                live_box_bottom := current_candle.c
                 live_c2_level := current_candle.h
                 live_c2_bar := current_candle.h_idx
-                live_cx_text := tspotC3Text(false)
             new_live_setup = na(live.signal_start_bar) or start_bar != live.signal_start_bar
             if not live_found or new_live_setup
                 if not keep_both_fibs and ((array.size(active_setup_live_flags) > 0 and array.get(active_setup_live_flags, 0)) or not live_found or new_live_setup)
                     clearRiskPackage()
-                if not na(live.fractal_box)
-                    box.delete(live.fractal_box)
-                    live.fractal_box := na
-                if not na(live.fractal_midline)
-                    line.delete(live.fractal_midline)
-                    live.fractal_midline := na
-                if not na(live.fractal_closeline)
-                    line.delete(live.fractal_closeline)
-                    live.fractal_closeline := na
                 if not na(live.sweep_line) and not live_sweep_active
                     line.delete(live.sweep_line)
                     live.sweep_line := na
                 if not na(live.cisd_line)
                     line.delete(live.cisd_line)
                     live.cisd_line := na
-                if not na(live.c2_label)
-                    label.delete(live.c2_label)
-                    live.c2_label := na
-                if not na(live.cx_label)
-                    label.delete(live.cx_label)
-                    live.cx_label := na
                 if not live_found
                     live.signal_start_bar := na
-                    live.setup_allows_cisd := false
             if live_found
                 live.signal_start_bar := start_bar
-                live.setup_allows_cisd := live_setup_allows_cisd
-                if not na(live.fractal_box)
-                    box.delete(live.fractal_box)
-                    live.fractal_box := na
-                if not na(live.fractal_midline)
-                    line.delete(live.fractal_midline)
-                    live.fractal_midline := na
-                if not na(live.fractal_closeline)
-                    line.delete(live.fractal_closeline)
-                    live.fractal_closeline := na
-                if not na(live.c2_label)
-                    label.delete(live.c2_label)
-                    live.c2_label := na
-                if not na(live.cx_label)
-                    label.delete(live.cx_label)
-                    live.cx_label := na
                 if show_cisd and live_setup_allows_cisd and live_c2_bar > 0
                     live_series_high = usebody_for_confirmation ? math.max(open[bar_index - live_c2_bar], close[bar_index - live_c2_bar]) : live_c2_level
                     live_series_low = usebody_for_confirmation ? math.min(open[bar_index - live_c2_bar], close[bar_index - live_c2_bar]) : live_c2_level
@@ -2549,12 +2375,10 @@ alerts.shortBreaker := false
 alerts.bullishC2Closed := false
 alerts.bearishC2Closed := false
 fractal_start_bar = 0
-live_fractal_left = not na(live.fractal_box) ? box.get_left(live.fractal_box) : na
-use_live_fractal_for_setup = show_live_developing_signals and not na(live.fractal_box) and not na(live.fractal_midline) and live.setup_allows_cisd and not na(live_fractal_left) and bar_index >= live_fractal_left
-if fractal_boxes.size() > 0 or use_live_fractal_for_setup
-    latest_fractal = use_live_fractal_for_setup ? live.fractal_box : fractal_boxes.get(0)
-    latest_midline = use_live_fractal_for_setup ? live.fractal_midline : fractal_midlines.get(0)
-    latest_fractal_allows_setup = use_live_fractal_for_setup ? true : (fractal_setup_flags.size() > 0 ? fractal_setup_flags.get(0) : false)
+if fractal_boxes.size() > 0
+    latest_fractal = fractal_boxes.get(0)
+    latest_midline = fractal_midlines.get(0)
+    latest_fractal_allows_setup = fractal_setup_flags.size() > 0 ? fractal_setup_flags.get(0) : false
     fractal_top = box.get_top(latest_fractal)
     fractal_bottom = box.get_bottom(latest_fractal)
     fractal_start_bar := box.get_left(latest_fractal)
@@ -2667,73 +2491,6 @@ if hide_against_fractals and fractal_boxes.size() > 0
                 line.set_color(current_midline, settings.htf_label_color)
                 if not na(current_closeline)
                     line.set_color(current_closeline, settings.htf_label_color)
-if delete_against_fractals and fractal_boxes.size() > 1
-    var bool[] bearish_traded_against = array.new<bool>()
-    var bool[] bullish_traded_against = array.new<bool>()
-    if array.size(bearish_traded_against) != fractal_boxes.size()
-        array.clear(bearish_traded_against)
-        array.clear(bullish_traded_against)
-        for i = 0 to fractal_boxes.size() - 1
-            array.push(bearish_traded_against, false)
-            array.push(bullish_traded_against, false)
-    for i = 0 to fractal_boxes.size() - 1
-        current_box = fractal_boxes.get(i)
-        current_midline = fractal_midlines.get(i)
-        box_top = box.get_top(current_box)
-        box_bottom = box.get_bottom(current_box)
-        midline_price = line.get_y1(current_midline)
-        if box_top > box_bottom
-            traded_against = false
-            for j = 0 to 100  // Check last 100 bars
-                if bar_index - j >= box.get_left(current_box)
-                    if close[j] > midline_price
-                        traded_against := true
-                        break
-            array.set(bearish_traded_against, i, traded_against)
-        else if box_bottom > box_top
-            traded_against = false
-            for j = 0 to 100  // Check last 100 bars
-                if bar_index - j >= box.get_left(current_box)
-                    if close[j] < midline_price
-                        traded_against := true
-                        break
-            array.set(bullish_traded_against, i, traded_against)
-    latest_bearish_index = -1
-    latest_bullish_index = -1
-    for i = 0 to fractal_boxes.size() - 1
-        current_box = fractal_boxes.get(i)
-        box_top = box.get_top(current_box)
-        box_bottom = box.get_bottom(current_box)
-        if box_top > box_bottom  // Bearish Fractal Pattern
-            if latest_bearish_index == -1 or box.get_left(fractal_boxes.get(latest_bearish_index)) < box.get_left(current_box)
-                latest_bearish_index := i
-        else if box_bottom > box_top  // Bullish Fractal Pattern
-            if latest_bullish_index == -1 or box.get_left(fractal_boxes.get(latest_bullish_index)) < box.get_left(current_box)
-                latest_bullish_index := i
-    for i = fractal_boxes.size() - 1 to 0
-        current_box = fractal_boxes.get(i)
-        box_top = box.get_top(current_box)
-        box_bottom = box.get_bottom(current_box)
-        should_delete = false
-        if box_top > box_bottom  // Bearish Fractal Pattern
-            if i != latest_bearish_index and array.get(bearish_traded_against, i)
-                should_delete := true
-        else if box_bottom > box_top  // Bullish Fractal Pattern
-            if i != latest_bullish_index and array.get(bullish_traded_against, i)
-                should_delete := true
-        if should_delete
-            box.delete(fractal_boxes.get(i))
-            line.delete(fractal_midlines.get(i))
-            if i < fractal_closelines.size()
-                line.delete(fractal_closelines.get(i))
-            array.remove(fractal_boxes, i)
-            if i < fractal_setup_flags.size()
-                array.remove(fractal_setup_flags, i)
-            array.remove(fractal_midlines, i)
-            if i < fractal_closelines.size()
-                array.remove(fractal_closelines, i)
-            array.remove(bearish_traded_against, i)
-            array.remove(bullish_traded_against, i)
 int htf_offset = settings.offset
 if htf1.settings.show and helper.ValidTimeframe(htf1.settings.htf) and bar_index > last_bar_index - 1000
     bool showTrace = false
@@ -3215,4 +2972,3 @@ alertcondition(enable_alerts and alert_breaker_setup and alerts.longBreaker, "Lo
 alertcondition(enable_alerts and alert_breaker_setup and alerts.shortBreaker, "Short Breaker", "Short Breaker setup")
 alertcondition(enable_alerts and alert_htf_c3_open and alerts.bullishC2Closed, "Bullish C2 Closed", "Bullish C2 closed and C3 opened")
 alertcondition(enable_alerts and alert_htf_c3_open and alerts.bearishC2Closed, "Bearish C2 Closed", "Bearish C2 closed and C3 opened")
- 
