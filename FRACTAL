@@ -150,8 +150,6 @@ type CandleSet
     line[]          htf_starts
     line[]          mini_sweeps
     line[]          mini_midpoints
-type Helper
-    string name             = "Helper"
 Settings settings           = Settings.new()
 var CandleSettings SettingsHTF1 = CandleSettings.new()
 var CandleSettings SettingsHTF2 = CandleSettings.new()
@@ -1029,25 +1027,14 @@ detectCISDAndProjections(int c2_bar, float c2_extreme_level, bool is_bullish, in
                 CAL.customAlert(alertFormat, (is_bullish ? "CISD C2 Long" : "CISD C2 Short") + " confirmed on candle close on " + syminfo.ticker + " (" + source_htf + ")")
 var Trace trace         = Trace.new()
 color color_transparent = #ffffff00
-method LineStyle(Helper helper, string style) =>
-    helper.name := style
-    out = switch style
-        line.style_dashed => line.style_dashed
-        line.style_dotted => line.style_dotted
-        '----' => line.style_dashed
-        'Â·Â·Â·Â·' => line.style_dotted
-        => line.style_solid
-method ValidTimeframe(Helper helper, string HTF) =>
-    helper.name := HTF
+validTimeframe(string HTF) =>
     if timeframe.in_seconds(HTF) >= timeframe.in_seconds("1D") and timeframe.in_seconds(HTF) > timeframe.in_seconds()
         true
     else
         n1 = timeframe.in_seconds()
         n2 = timeframe.in_seconds(HTF)
-        n3 = n1 % n2
         (n1 < n2 and math.round(n2/n1) == n2/n1)
-method RemainingTime(Helper helper, string HTF) =>
-    helper.name     := HTF
+remainingTime(string HTF) =>
     if barstate.isrealtime
         timeRemaining   = (time_close(HTF) - timenow)/1000
         days            = math.floor(timeRemaining / 86400)
@@ -1064,8 +1051,7 @@ method RemainingTime(Helper helper, string HTF) =>
         r
     else
         "n/a"
-method HTFName(Helper helper, string HTF) =>
-    helper.name := "HTFName"
+htfName(string HTF) =>
     formatted = HTF
     seconds = timeframe.in_seconds(HTF)
     if seconds < 60
@@ -1075,8 +1061,7 @@ method HTFName(Helper helper, string HTF) =>
     else if (seconds/60/60) < 24
         formatted := str.tostring((seconds/60/60)) + "H"
     formatted
-method GetCurrentTimeframe(Helper helper) =>
-    helper.name := "GetCurrentTimeframe"
+getCurrentTimeframe() =>
     current_seconds = timeframe.in_seconds()
     if current_seconds < 60
         str.tostring(current_seconds) + "S"
@@ -1086,16 +1071,7 @@ method GetCurrentTimeframe(Helper helper) =>
         str.tostring((current_seconds/60/60)) + "H"
     else
         str.tostring((current_seconds/60/60/24)) + "D"
-method GetCurrentBias(Helper helper) =>
-    helper.name := "GetCurrentBias"
-    if fractal_bias == "Bullish"
-        "Bias: Bullish"
-    else if fractal_bias == "Bearish"
-        "Bias: Bearish"
-    else
-        "Bias: Neutral"
-method GetHTFBias(Helper helper, Candle last_closed, Candle prev_closed) =>
-    helper.name := "GetHTFBias"
+getHTFBias(Candle last_closed, Candle prev_closed) =>
     if na(last_closed) or na(prev_closed)
         "Bias: Neutral"
     else
@@ -1129,8 +1105,7 @@ method GetHTFBias(Helper helper, Candle last_closed, Candle prev_closed) =>
                 "Bias: Neutral"
         else
             "Bias: Neutral"
-method GetTablePosition(Helper helper, string position) =>
-    helper.name := "GetTablePosition"
+getTablePosition(string position) =>
     switch position
         'Top Left' => position.top_left
         'Top Center' => position.top_center
@@ -1142,55 +1117,13 @@ method GetTablePosition(Helper helper, string position) =>
         'Bottom Center' => position.bottom_center
         'Bottom Right' => position.bottom_right
         => position.top_right
-method HTFEnabled(Helper helper) =>
-    helper.name := "HTFEnabled"
+htfEnabled() =>
     int enabled =0
     enabled += htf1.settings.show ? 1 : 0
     enabled += htf2.settings.show ? 1 : 0
     enabled += htf3.settings.show ? 1 : 0
-    enabled += htf4.settings.show ? 1 : 0
-    enabled += htf5.settings.show ? 1 : 0
-    enabled += htf6.settings.show ? 1 : 0
     int last = math.min(enabled, settings.max_sets)
     last
-method CandleSetHigh(Helper helper, Candle[] candles, float h) =>
-    helper.name := "CandlesSetHigh"
-    float _h = h
-    if array.size(candles) > 0
-        for i = 0 to array.size(candles)-1
-            Candle c = array.get(candles, i)
-            if c.h > _h
-                _h := c.h
-    _h
-method CandlesHigh(Helper helper, Candle[] candles) =>
-    helper.name := "CandlesHigh"
-    h   = 0.0
-    int cnt = 0
-    int last = helper.HTFEnabled()
-    if htf1.settings.show and helper.ValidTimeframe(htf1.settings.htf)
-        h := helper.CandleSetHigh(htf1.candles, h)
-        cnt += 1
-    if htf2.settings.show and helper.ValidTimeframe(htf2.settings.htf) and cnt < last
-        h := helper.CandleSetHigh(htf2.candles, h)
-        cnt +=1
-    if htf3.settings.show and helper.ValidTimeframe(htf3.settings.htf) and cnt < last
-        h := helper.CandleSetHigh(htf3.candles, h)
-        cnt += 1
-    if htf4.settings.show and helper.ValidTimeframe(htf4.settings.htf) and cnt < last
-        h := helper.CandleSetHigh(htf4.candles, h)
-        cnt += 1
-    if htf5.settings.show and helper.ValidTimeframe(htf5.settings.htf) and cnt < last
-        h := helper.CandleSetHigh(htf5.candles, h)
-        cnt += 1
-    if htf6.settings.show and helper.ValidTimeframe(htf6.settings.htf) and cnt < last
-        h := helper.CandleSetHigh(htf6.candles, h)
-    h
-    if array.size(candles) > 0
-        for i = 0 to array.size(candles)-1
-            Candle c = array.get(candles, i)
-            if c.h > h
-                h := c.h
-    h
 method Reorder(CandleSet candleSet, int offset) =>
     size = candleSet.candles.size()
     candle_width = candleSet.settings.width
@@ -1211,10 +1144,10 @@ method Reorder(CandleSet candleSet, int offset) =>
             Candle label_candle = candleSet.candles.get(i)
             top := na(top) ? label_candle.h : math.max(top, label_candle.h)
         int left = bar_index + offset + int(((candle_width + settings.buffer) * (size - 1)) / 2)
-        atr_for_label = nz(ta.atr(200), top * 0.001)
+        atr_for_label = nz(atr_200, top * 0.001)
         label_y = top + (atr_for_label * 0.35)
         label_color = color.new(settings.htf_label_color, 0)
-        string lbl = helper.HTFName(candleSet.settings.htf) + "\n(" + helper.RemainingTime(candleSet.settings.htf) + ")"
+        string lbl = htfName(candleSet.settings.htf) + "\n(" + remainingTime(candleSet.settings.htf) + ")"
         if not na(candleSet.tfName)
             label.set_xy(candleSet.tfName, left, label_y)
             label.set_text(candleSet.tfName, lbl)
@@ -1673,7 +1606,7 @@ method FindImbalance(CandleSet candleSet) =>
                     current_candle = candleSet.candles.get(i)
                     prev_candle = candleSet.candles.get(i + 1)
                     float mid_level = calculateLogMidpoint(prev_candle.h, prev_candle.l, prev_candle.o, prev_candle.c)
-                    midpoint_line = line.new(box.get_left(prev_candle.body) + candle_width/2, mid_level, box.get_left(current_candle.body) + candle_width/2, mid_level, color=candleSet.settings.midpoint_color, width=candleSet.settings.midpoint_width, style=helper.LineStyle(candleSet.settings.midpoint_style))
+                    midpoint_line = line.new(box.get_left(prev_candle.body) + candle_width/2, mid_level, box.get_left(current_candle.body) + candle_width/2, mid_level, color=candleSet.settings.midpoint_color, width=candleSet.settings.midpoint_width, style=toLineStyle(candleSet.settings.midpoint_style))
                     candleSet.mini_midpoints.unshift(midpoint_line)
             if show_htf_candle_sweeps
                 sweep_loop_end = clean_mini_display_lines ? 0 : candleSet.candles.size() - 2
@@ -1682,10 +1615,10 @@ method FindImbalance(CandleSet candleSet) =>
                     next_candle = candleSet.candles.get(i + 1)
                     extend_right = clean_mini_display_lines ? 0 : htf_sweep_extend_periods * (candle_width + settings.buffer)
                     if current_candle.h > next_candle.h
-                        sweep_line = line.new(box.get_left(next_candle.body) + candle_width/2, next_candle.h, box.get_right(current_candle.body) + candle_width + extend_right, next_candle.h, color=htf_candle_sweep_color, width=htf_candle_sweep_width, style=helper.LineStyle(htf_candle_sweep_style))
+                        sweep_line = line.new(box.get_left(next_candle.body) + candle_width/2, next_candle.h, box.get_right(current_candle.body) + candle_width + extend_right, next_candle.h, color=htf_candle_sweep_color, width=htf_candle_sweep_width, style=toLineStyle(htf_candle_sweep_style))
                         candleSet.mini_sweeps.unshift(sweep_line)
                     if current_candle.l < next_candle.l
-                        sweep_line = line.new(box.get_left(next_candle.body) + candle_width/2, next_candle.l, box.get_right(current_candle.body) + candle_width + extend_right, next_candle.l, color=htf_candle_sweep_color, width=htf_candle_sweep_width, style=helper.LineStyle(htf_candle_sweep_style))
+                        sweep_line = line.new(box.get_left(next_candle.body) + candle_width/2, next_candle.l, box.get_right(current_candle.body) + candle_width + extend_right, next_candle.l, color=htf_candle_sweep_color, width=htf_candle_sweep_width, style=toLineStyle(htf_candle_sweep_style))
                         candleSet.mini_sweeps.unshift(sweep_line)
                 mini_sweep_limit = clean_mini_display_lines ? 2 : candleSet.settings.max_display
                 while candleSet.mini_sweeps.size() > mini_sweep_limit
@@ -1701,14 +1634,14 @@ method FindImbalance(CandleSet candleSet) =>
                         candleSet.imbalances.push(imb)
                         if fvg_midpoint_show
                             fvg_mid = (candle2.h + candle1.l) / 2
-                            candleSet.mini_midpoints.unshift(line.new(box.get_left(candle2.body), fvg_mid, box.get_right(candle1.body), fvg_mid, color=fvg_midpoint_color, width=fvg_midpoint_width, style=helper.LineStyle(fvg_midpoint_style)))
+                            candleSet.mini_midpoints.unshift(line.new(box.get_left(candle2.body), fvg_mid, box.get_right(candle1.body), fvg_mid, color=fvg_midpoint_color, width=fvg_midpoint_width, style=toLineStyle(fvg_midpoint_style)))
                     if (candle1.h < candle2.l and math.max(candle1.o, candle1.c) < math.min(candle2.o, candle2.c))
                         Imbalance imb = Imbalance.new()
                         imb.b := box.new(box.get_right(candle1.body), candle1.h, box.get_left(candle2.body), candle2.l, bgcolor=settings.fvg_color, border_color = color_transparent)
                         candleSet.imbalances.push(imb)
                         if fvg_midpoint_show
                             fvg_mid = (candle1.h + candle2.l) / 2
-                            candleSet.mini_midpoints.unshift(line.new(box.get_right(candle1.body), fvg_mid, box.get_left(candle2.body), fvg_mid, color=fvg_midpoint_color, width=fvg_midpoint_width, style=helper.LineStyle(fvg_midpoint_style)))
+                            candleSet.mini_midpoints.unshift(line.new(box.get_right(candle1.body), fvg_mid, box.get_left(candle2.body), fvg_mid, color=fvg_midpoint_color, width=fvg_midpoint_width, style=toLineStyle(fvg_midpoint_style)))
                     box temp = box.copy(candle3.body)
                     box.delete(candle3.body)
                     candle3.body := temp
@@ -1866,7 +1799,7 @@ method Monitor(CandleSet candleSet) =>
                     last_htf_candle_bar := start_bar
                 if not fractal_created and last_closed.h > prev_closed.h and last_closed.c < prev_closed.h and okfractal_bearish_bias and not (last_closed.h > prev_closed.h and last_closed.l < prev_closed.l and last_closed.c > prev_closed.l and last_closed.c < prev_closed.h)
                     if settings.show_chart_sweeps
-                        sweep_line = line.new(prev_closed.o_idx, prev_closed.h, last_closed.o_idx, prev_closed.h, color=htf1_sweep_color, style=helper.LineStyle(htf1_sweep_style), width=htf1_sweep_width)
+                        sweep_line = line.new(prev_closed.o_idx, prev_closed.h, last_closed.o_idx, prev_closed.h, color=htf1_sweep_color, style=toLineStyle(htf1_sweep_style), width=htf1_sweep_width)
                         sweep_lines.unshift(sweep_line)
                     sweep_mid = calculateLogMidpoint(last_closed.h, last_closed.l, last_closed.o, last_closed.c)
                     if last_closed.c < sweep_mid
@@ -1913,7 +1846,7 @@ method Monitor(CandleSet candleSet) =>
                                 line.delete(fractal_closelines.pop())
                 if not fractal_created and last_closed.l < prev_closed.l and last_closed.c > prev_closed.l and okfractal_bullish_bias and not (last_closed.h > prev_closed.h and last_closed.l < prev_closed.l and last_closed.c > prev_closed.l and last_closed.c < prev_closed.h)
                     if settings.show_chart_sweeps
-                        sweep_line = line.new(prev_closed.o_idx, prev_closed.l, last_closed.o_idx, prev_closed.l, color=htf1_sweep_color, style=helper.LineStyle(htf1_sweep_style), width=htf1_sweep_width)
+                        sweep_line = line.new(prev_closed.o_idx, prev_closed.l, last_closed.o_idx, prev_closed.l, color=htf1_sweep_color, style=toLineStyle(htf1_sweep_style), width=htf1_sweep_width)
                         sweep_lines.unshift(sweep_line)
                     sweep_mid = calculateLogMidpoint(last_closed.h, last_closed.l, last_closed.o, last_closed.c)
                     if last_closed.c > sweep_mid
@@ -2124,7 +2057,7 @@ method Update(CandleSet candleSet, int offset, bool showTrace) =>
             if settings.trace_show and showTrace and not clean_mini_display_lines
                 if bar_index - candle.o_idx < 5000
                     if na(trace.o)
-                        trace.o := line.new(candle.o_idx, candle.o, box.get_left(candle.body), candle.o, xloc= xloc.bar_index, color=settings.trace_o_color, style= helper.LineStyle(settings.trace_o_style), width=settings.trace_o_size)
+                        trace.o := line.new(candle.o_idx, candle.o, box.get_left(candle.body), candle.o, xloc= xloc.bar_index, color=settings.trace_o_color, style=toLineStyle(settings.trace_o_style), width=settings.trace_o_size)
                     else
                         line.set_xy1(trace.o, candle.o_idx, candle.o)
                         line.set_xy2(trace.o, box.get_left(candle.body), candle.o)
@@ -2136,7 +2069,7 @@ method Update(CandleSet candleSet, int offset, bool showTrace) =>
                             label.set_text(trace.o_l, str.tostring(candle.o))
                 if bar_index - candle.c_idx < 5000
                     if na(trace.c)
-                        trace.c := line.new(candle.c_idx, candle.c, box.get_left(candle.body), candle.c, xloc= xloc.bar_index, color=settings.trace_c_color, style=helper.LineStyle(settings.trace_c_style), width=settings.trace_c_size)
+                        trace.c := line.new(candle.c_idx, candle.c, box.get_left(candle.body), candle.c, xloc= xloc.bar_index, color=settings.trace_c_color, style=toLineStyle(settings.trace_c_style), width=settings.trace_c_size)
                     else
                         line.set_xy1(trace.c, candle.c_idx, candle.c)
                         line.set_xy2(trace.c, box.get_left(candle.body), candle.c)
@@ -2148,7 +2081,7 @@ method Update(CandleSet candleSet, int offset, bool showTrace) =>
                             label.set_text(trace.c_l, str.tostring(candle.c))
                 if bar_index - candle.h_idx < 5000
                     if na(trace.h)
-                        trace.h := line.new(candle.h_idx, candle.h, line.get_x1(candle.wick_up), candle.h, xloc= xloc.bar_index, color=settings.trace_h_color, style=helper.LineStyle(settings.trace_h_style), width=settings.trace_h_size)
+                        trace.h := line.new(candle.h_idx, candle.h, line.get_x1(candle.wick_up), candle.h, xloc= xloc.bar_index, color=settings.trace_h_color, style=toLineStyle(settings.trace_h_style), width=settings.trace_h_size)
                     else
                         line.set_xy1(trace.h, candle.h_idx, candle.h)
                         line.set_xy2(trace.h, line.get_x1(candle.wick_up), candle.h)
@@ -2160,7 +2093,7 @@ method Update(CandleSet candleSet, int offset, bool showTrace) =>
                             label.set_text(trace.h_l, str.tostring(candle.h))
                 if bar_index - candle.l_idx < 5000
                     if na(trace.l)
-                        trace.l := line.new(candle.l_idx, candle.l, line.get_x1(candle.wick_down), candle.l, xloc= xloc.bar_index, color=settings.trace_l_color, style=helper.LineStyle(settings.trace_l_style), width=settings.trace_l_size)
+                        trace.l := line.new(candle.l_idx, candle.l, line.get_x1(candle.wick_down), candle.l, xloc= xloc.bar_index, color=settings.trace_l_color, style=toLineStyle(settings.trace_l_style), width=settings.trace_l_size)
                     else
                         line.set_xy1(trace.l, candle.l_idx, candle.l)
                         line.set_xy2(trace.l, line.get_x1(candle.wick_down), candle.l)
@@ -2204,12 +2137,12 @@ method Update(CandleSet candleSet, int offset, bool showTrace) =>
                     live_sweep_level := prev_closed.l
                 if live_sweep_active
                     if na(live.sweep_line)
-                        live.sweep_line := line.new(prev_closed.o_idx, live_sweep_level, current_candle.o_idx, live_sweep_level, color=htf1_sweep_color, style=helper.LineStyle(htf1_sweep_style), width=htf1_sweep_width)
+                        live.sweep_line := line.new(prev_closed.o_idx, live_sweep_level, current_candle.o_idx, live_sweep_level, color=htf1_sweep_color, style=toLineStyle(htf1_sweep_style), width=htf1_sweep_width)
                     else
                         line.set_xy1(live.sweep_line, prev_closed.o_idx, live_sweep_level)
                         line.set_xy2(live.sweep_line, current_candle.o_idx, live_sweep_level)
                         line.set_color(live.sweep_line, htf1_sweep_color)
-                        line.set_style(live.sweep_line, helper.LineStyle(htf1_sweep_style))
+                        line.set_style(live.sweep_line, toLineStyle(htf1_sweep_style))
                         line.set_width(live.sweep_line, htf1_sweep_width)
                 else if not na(live.sweep_line)
                     line.delete(live.sweep_line)
@@ -2349,7 +2282,7 @@ method Update(CandleSet candleSet, int offset, bool showTrace) =>
                     clearRiskPackage()
     candleSet
 int cnt = 0
-int last = helper.HTFEnabled()
+int last = htfEnabled()
 pivot_high_open = ta.pivothigh(open, 2, 2)
 pivot_low_open = ta.pivotlow(open, 2, 2)
 pivot_high_close = ta.pivothigh(close, 2, 2)
@@ -2492,7 +2425,7 @@ if hide_against_fractals and fractal_boxes.size() > 0
                 if not na(current_closeline)
                     line.set_color(current_closeline, settings.htf_label_color)
 int htf_offset = settings.offset
-if htf1.settings.show and helper.ValidTimeframe(htf1.settings.htf) and bar_index > last_bar_index - 1000
+if htf1.settings.show and validTimeframe(htf1.settings.htf) and bar_index > last_bar_index - 1000
     bool showTrace = false
     if settings.trace_anchor == "First Timeframe"
         showTrace := true
@@ -2545,7 +2478,7 @@ if htf1.settings.show and helper.ValidTimeframe(htf1.settings.htf) and bar_index
                 line.delete(cisd_lines.pop())
     cnt +=1
     htf_offset += cnt > 0 ? (htf1.candles.size() * htf1.settings.width) + (htf1.candles.size() > 0 ? (htf1.candles.size()-1) * settings.buffer : 0) +  settings.htf_buffer : 0
-if htf2.settings.show and helper.ValidTimeframe(htf2.settings.htf) and cnt < last
+if htf2.settings.show and validTimeframe(htf2.settings.htf) and cnt < last
     bool showTrace = false
     if settings.trace_anchor == "First Timeframe" and cnt == 0
         showTrace := true
@@ -2554,7 +2487,7 @@ if htf2.settings.show and helper.ValidTimeframe(htf2.settings.htf) and cnt < las
     htf2.Monitor().Update(htf_offset, showTrace).FindImbalance()
     cnt+=1
     htf_offset += cnt > 0 ? (htf2.candles.size() * htf2.settings.width) + (htf2.candles.size() > 0 ? (htf2.candles.size()-1) * settings.buffer : 0) +  settings.htf_buffer : 0
-if htf3.settings.show and helper.ValidTimeframe(htf3.settings.htf) and cnt < last
+if htf3.settings.show and validTimeframe(htf3.settings.htf) and cnt < last
     bool showTrace = false
     if settings.trace_anchor == "First Timeframe" and cnt == 0
         showTrace := true
@@ -2911,7 +2844,7 @@ if show_table and htf1.candles.size() > 0
     has_position_data = showPositionSize and not na(latest_position_size)
     table_rows = has_position_data ? 4 : 3
     if na(info_table)
-        info_table := table.new(helper.GetTablePosition(table_position), 1, table_rows,
+        info_table := table.new(getTablePosition(table_position), 1, table_rows,
                                bgcolor=table_bg_color,
                                border_width=table_border_width,
                                border_color=table_border_color,
@@ -2921,20 +2854,20 @@ if show_table and htf1.candles.size() > 0
     else
         if current_table_rows != table_rows
             table.delete(info_table)
-            info_table := table.new(helper.GetTablePosition(table_position), 1, table_rows,
+            info_table := table.new(getTablePosition(table_position), 1, table_rows,
                                    bgcolor=table_bg_color,
                                    border_width=table_border_width,
                                    border_color=table_border_color,
                                    frame_width=table_frame_width,
                                    frame_color=table_frame_color)
             current_table_rows := table_rows
-    title_text = helper.GetCurrentTimeframe() + "-" + helper.HTFName(htf1.settings.htf) + " Model"
-    timer_text = helper.RemainingTime(htf1.settings.htf)
+    title_text = getCurrentTimeframe() + "-" + htfName(htf1.settings.htf) + " Model"
+    timer_text = remainingTime(htf1.settings.htf)
     bias_text = "Bias: Neutral"
     if htf1.candles.size() >= 3
         last_closed = htf1.candles.get(1)
         prev_closed = htf1.candles.get(2)
-        bias_text := helper.GetHTFBias(last_closed, prev_closed)
+        bias_text := getHTFBias(last_closed, prev_closed)
     bias_and_time_text = bias_text
     table.cell(info_table, 0, 0, title_text,
                text_color=table_text_color,
